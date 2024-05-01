@@ -7028,10 +7028,10 @@ ISOFile.prototype.flush = function() {
 /* Finds the byte offset for a given time on a given track
    also returns the time of the previous rap */
 ISOFile.prototype.seekTrack = function(time, useRap, trak) {
-	var j;
+	var r = trak.samples.length;
+	var midpoint;
 	var sample;
 	var seek_offset = Infinity;
-	var rap_seek_sample_num = 0;
 	var seek_sample_num = 0;
 	var timescale;
 
@@ -7040,21 +7040,20 @@ ISOFile.prototype.seekTrack = function(time, useRap, trak) {
 		return { offset: 0, time: 0 };
 	}
 
-	for (j = 0; j < trak.samples.length; j++) {
-		sample = trak.samples[j];
-		if (j === 0) {
-			seek_sample_num = 0;
-			timescale = sample.timescale;
-		} else if (sample.cts > time * sample.timescale) {
-			seek_sample_num = j-1;
-			break;
-		}
-		if (useRap && sample.is_sync) {
-			rap_seek_sample_num = j;
-		}
-	}
+	timescale = trak.samples[0].timescale;
+    while (seek_sample_num < r) {
+    	midpoint = Math.floor((seek_sample_num + r) / 2);
+		sample = trak.samples[midpoint];
+      	if (sample.cts < time * sample.timescale) {
+        	seek_sample_num = midpoint + 1;
+      	} else {
+        	r = midpoint;
+      	}
+    }
+
 	if (useRap) {
-		seek_sample_num = rap_seek_sample_num;
+		while (seek_sample_num && trak.samples[seek_sample_num].is_sync === false)
+			seek_sample_num--;
 	}
 	time = trak.samples[seek_sample_num].cts;
 	trak.nextSample = seek_sample_num;
